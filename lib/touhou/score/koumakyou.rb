@@ -1,66 +1,21 @@
 require 'bin_utils'
 
+require 'touhou/score/koumakyou/binary_data'
+require 'touhou/score/koumakyou/loader'
+
 module Touhou
   module Score
     class Koumakyou
-      class Loader
-        attr_reader :raw
 
-        def load(binary)
-          @raw = decrypt(binary)
-          validate
-          raw
-        end
-
-        def decrypt(data)
-          decrypt_bytes(data.unpack('C*')).pack('C*')
-        end
-    
-        def decrypt_bytes(bytes)
-          bytes[0..0] + (bytes[1..-1].inject({data: [], mask: 0}){|l,r|
-            mask = switch_bit((l[:mask] + (l[:data].last || 0)) % 256)
-            {data: l[:data] + [r ^ mask], mask: mask}
-          })[:data]
-        end
-    
-        def switch_bit(byte)
-          (byte >> 5) | ((byte << 3) % 256)
-        end
-
-        def validate
-          raise unless bytes[4..-1].inject(:+) % 65536 == BinUtils.get_int16_le(data, 2)
-        end
-
-        def bytes
-          raw.unpack('C*')
-        end
-      end
-
-      class << self
-        def load(file)
-          Koumakyou.new(Loader.new.load(IO.binread(file)))
-        end
+      def self.load(file)
+        Loader.load(file)
       end
     
       attr_reader :raw, :data
-    
-      def initialize(raw)
-        @raw = raw
-        @data = {}
-        body = raw[self.header_size..-1]
-        loop {
-          break if body.nil? || body.empty?
-          signature = body[0, 4].to_sym
-          chapter_size = BinUtils.get_sint16_le(body, 4)
-          data = body[0, chapter_size][8..-1]
-          @data[signature] ||= []
-          @data[signature] << data
-          body = body[chapter_size..-1]
-        }
-      end
+      attr_accessor :file_header, :header, :high_scores, :clear_datas, :spell_cards, :practices
     
       def unknown1
-        BinUtils.get_int16_le(@raw, 0)
+        header[:unknown1]
       end
     
       def checksum
@@ -147,3 +102,4 @@ module Touhou
     end
   end
 end
+
