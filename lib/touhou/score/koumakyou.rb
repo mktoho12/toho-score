@@ -3,19 +3,17 @@ require 'bin_utils'
 module Touhou
   module Score
     class Koumakyou
-      class << self
-        def load(file)
-          raw = decrypt(IO.binread(file))
-          validate(raw)
-          Koumakyou.new(raw)
+      class Loader
+        attr_reader :raw
+
+        def load(binary)
+          @raw = decrypt(binary)
+          validate
+          raw
         end
-    
-        def validate(string)
-          raise if string.unpack('C*')[4..-1].inject(:+) == BinUtils.get_int16_le(string, 2)
-        end
-    
-        def decrypt(string)
-          decrypt_bytes(string.unpack('C*')).pack('C*')
+
+        def decrypt(data)
+          decrypt_bytes(data.unpack('C*')).pack('C*')
         end
     
         def decrypt_bytes(bytes)
@@ -27,6 +25,20 @@ module Touhou
     
         def switch_bit(byte)
           (byte >> 5) | ((byte << 3) % 256)
+        end
+
+        def validate
+          raise unless bytes[4..-1].inject(:+) % 65536 == BinUtils.get_int16_le(data, 2)
+        end
+
+        def bytes
+          raw.unpack('C*')
+        end
+      end
+
+      class << self
+        def load(file)
+          Koumakyou.new(Loader.new.load(IO.binread(file)))
         end
       end
     
@@ -133,6 +145,5 @@ module Touhou
         str.gsub(/[\0\n].*$/, '').force_encoding('Windows-31J').encode('UTF-8')
       end
     end
-
   end
 end
