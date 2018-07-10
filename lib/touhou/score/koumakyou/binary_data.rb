@@ -3,7 +3,7 @@ module Touhou
     class Koumakyou
       class BinaryData
         attr_reader :raw, :current
-
+        
         def initialize(raw)
           @raw = raw
           @current = 0
@@ -14,9 +14,7 @@ module Touhou
         end
 
         def read_raw(len)
-          result = take_raw(current, len)
-          @current += len
-          result
+          take_raw(current, len).tap{ @current += len }
         end
 
         def take_binary(pos, len)
@@ -24,20 +22,24 @@ module Touhou
         end
 
         def read_binary(len)
-          result = take_binary(current, len)
-          @current += len
-          result
+          take_binary(current, len).tap{ @current += len }
         end
 
-        [:int8, :int16, :sint16, :int32, :sint32].each do |type|
-          define_method("take_#{type}") do |pos|
-            take(pos, type)
+        TYPES = {
+          int8:   { byte: 1, method: :get_int8 },
+          int16:  { byte: 2, method: :get_int16_le },
+          sint16: { byte: 2, method: :get_sint16_le },
+          int32:  { byte: 4, method: :get_int32_le },
+          sint32: { byte: 4, method: :get_sint32_le },
+        }
+
+        TYPES.each do |type_name, type|
+          define_method("take_#{type_name}") do |pos|
+            BinUtils.send(type[:method], raw, pos)
           end
 
-          define_method("read_#{type}") do
-            result = send "take_#{type}", current
-            @current += type.match(/\d+$/)[0].to_i / 8
-            result
+          define_method("read_#{type_name}") do
+            send("take_#{type_name}", current).tap{ @current += type[:byte] }
           end
         end
 
@@ -47,21 +49,6 @@ module Touhou
 
         def bytes
           raw.unpack('C*')
-        end
-
-        def take(pos, type, len = 0)
-          case type
-          when :int8
-            BinUtils.get_int8(raw, pos)
-          when :int16
-            BinUtils.get_int16_le(raw, pos)
-          when :sint16
-            BinUtils.get_sint16_le(raw, pos)
-          when :int32
-            BinUtils.get_int32_le(raw, pos)
-          when :sint32
-            BinUtils.get_sint32_le(raw, pos)
-          end
         end
       end
     end
