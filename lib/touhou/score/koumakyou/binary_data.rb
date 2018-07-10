@@ -1,3 +1,5 @@
+require 'bin_utils'
+
 module Touhou
   module Score
     class Koumakyou
